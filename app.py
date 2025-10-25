@@ -1,46 +1,35 @@
 from flask import Flask, request, jsonify, render_template_string
-import requests
 
 app = Flask(__name__)
+
+brands = []
 
 @app.route('/')
 def index():
     return render_template_string("""
-    <h2>Fashion Authenticity Checker</h2>
-    <form method="POST" action="/verify_item">
-      <input name="brand" placeholder="Enter Brand" required />
-      <input name="model" placeholder="Enter Model" required />
-      <button type="submit">Verify</button>
+    <h2>Registered Brand Models</h2>
+    <ul>
+      {% for item in brands %}
+        <li>{{ item['brand'] }} - {{ item['model'] }}</li>
+      {% endfor %}
+    </ul>
+    <form method="POST" action="/brand">
+      <input name="brand" placeholder="Brand Name" required />
+      <input name="model" placeholder="Model Name" required />
+      <button type="submit">Register Brand</button>
     </form>
-    {% if result %}
-      <h3>Result:</h3>
-      <p>{{ result }}</p>
-    {% endif %}
-    """, result=None)
+    """, brands=brands)
 
-@app.route('/verify_item', methods=['POST'])
-def verify():
-    brand = request.form['brand']
-    model = request.form['model']
+@app.route('/brand', methods=['POST'])
+def add_brand():
+    brand = request.form.get('brand') or request.json.get('brand')
+    model = request.form.get('model') or request.json.get('model')
+    brands.append({'brand': brand, 'model': model})
+    return jsonify({'message': 'Brand model registered successfully'}), 201
 
-    try:
-        response = requests.get("http://brand_service:5001/brands")
-        if response.status_code == 200:
-            data = response.json()
-            for item in data:
-                if item['brand'].lower() == brand.lower() and item['model'].lower() == model.lower():
-                    return render_template_string("""
-                    <h2>✅ Item is Authentic!</h2>
-                    <a href="/">Go back</a>
-                    """)
-            return render_template_string("""
-            <h2>❌ Item NOT found. Might be Fake.</h2>
-            <a href="/">Go back</a>
-            """)
-        else:
-            return "Error fetching brand data", 500
-    except Exception as e:
-        return f"Error: {str(e)}", 500
-    
+@app.route('/brands', methods=['GET'])
+def get_brands():
+    return jsonify(brands)
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5002)   
+    app.run(host="0.0.0.0", port=5001)
